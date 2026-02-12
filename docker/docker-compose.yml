@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    container_name: hackathon-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - FLASK_HOST=0.0.0.0
+      - FLASK_PORT=5000
+    env_file:
+      - ../.env
+    volumes:
+      - ../data:/app/data:ro
+      - ../vector_stores:/app/vector_stores
+      - ../outputs:/app/outputs
+      - ../logs:/app/logs
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/hello"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  streamlit:
+    build:
+      context: ..
+      dockerfile: docker/streamlit.Dockerfile
+    container_name: hackathon-streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_API_URL=http://backend:5000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  vector_stores:
+  outputs:
+  logs:
+
